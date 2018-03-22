@@ -5,7 +5,7 @@ pub struct Wram {
 impl Wram {
     pub fn new() -> Wram {
         Wram {
-          data: vec![0; 0xDFFF - 0xC000 + 0x1],
+            data: vec![0; 0xDFFF - 0xC000 + 0x1],
         }
     }
 

@@ -63,21 +63,20 @@ impl Interconnect {
     pub fn store8(&mut self, addr: u16, value: u8) {
         if let Some(offset) = map::WRAM.contains(addr) {
             if offset >= 0xC000 && offset < 0xDE01 {
-              let addr = offset + 0x2000;
-              self.echo.store8(addr, value)
+                let addr = offset + 0x2000;
+                self.echo.store8(addr, value)
             }
             return self.wram.store8(offset, value);
         }
-        
+
         if let Some(offset) = map::ECHO.contains(addr) {
             if offset >= 0xE000 && offset < 0xFE01 {
-              let addr = offset - 0x2000;
-              self.wram.store8(addr, value)
+                let addr = offset - 0x2000;
+                self.wram.store8(addr, value)
             }
             return self.echo.store8(offset, value);
         }
 
         panic!("Unhandled store 8bit address {:#x}", addr);
     }
-
 }

@@ -5,7 +5,7 @@ pub struct Echo {
 impl Echo {
     pub fn new() -> Echo {
         Echo {
-          data: vec![0; 0xFDFF - 0xE000 + 0x1],
+            data: vec![0; 0xFDFF - 0xE000 + 0x1],
         }
     }
 
