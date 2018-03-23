@@ -137,50 +137,48 @@ impl Cpu {
     }
 
     fn store16(&mut self, addr: u16, value: u16) {
-      self.interconnect
-          .store8(addr, (value & 0xff) as u8);
-      self.interconnect
-          .store8(addr + 1, (value >> 8) as u8);
+        self.interconnect.store8(addr, (value & 0xff) as u8);
+        self.interconnect.store8(addr + 1, (value >> 8) as u8);
     }
 
     fn load16(&mut self, addr: u16) -> u16 {
-      let lhs = self.interconnect.load8(addr) as u16;
-      let rhs = (self.interconnect.load8(addr + 1) as u16) << 8;
+        let lhs = self.interconnect.load8(addr) as u16;
+        let rhs = (self.interconnect.load8(addr + 1) as u16) << 8;
 
-      return lhs | rhs;
+        return lhs | rhs;
     }
 
     pub fn power_up(&mut self) {
-      self.store16(0xFF05, 0x00);
-      self.store16(0xFF06, 0x00);
-      self.store16(0xFF07, 0x00);
-      self.store16(0xFF10, 0x80);
-      self.store16(0xFF11, 0xBF);
-      self.store16(0xFF12, 0xF3);
-      self.store16(0xFF14, 0xBF);
-      self.store16(0xFF16, 0x3F);
-      self.store16(0xFF17, 0x00);
-      self.store16(0xFF19, 0xBF);
-      self.store16(0xFF1A, 0x7F);
-      self.store16(0xFF1B, 0xFF);
-      self.store16(0xFF1C, 0x9F);
-      self.store16(0xFF1E, 0xBF);
-      self.store16(0xFF20, 0xFF);
-      self.store16(0xFF21, 0x00);
-      self.store16(0xFF22, 0x00);
-      self.store16(0xFF23, 0xBF);
-      self.store16(0xFF24, 0x77);
-      self.store16(0xFF25, 0xF3);
-      self.store16(0xFF26, 0xF1);
-      self.store16(0xFF40, 0x91);
-      self.store16(0xFF42, 0x00);
-      self.store16(0xFF43, 0x00);
-      self.store16(0xFF45, 0x00);
-      self.store16(0xFF47, 0xFC);
-      self.store16(0xFF48, 0xFF);
-      self.store16(0xFF49, 0xFF);
-      self.store16(0xFF4A, 0x00);
-      self.store16(0xFF4B, 0x00);
+        self.store16(0xFF05, 0x00);
+        self.store16(0xFF06, 0x00);
+        self.store16(0xFF07, 0x00);
+        self.store16(0xFF10, 0x80);
+        self.store16(0xFF11, 0xBF);
+        self.store16(0xFF12, 0xF3);
+        self.store16(0xFF14, 0xBF);
+        self.store16(0xFF16, 0x3F);
+        self.store16(0xFF17, 0x00);
+        self.store16(0xFF19, 0xBF);
+        self.store16(0xFF1A, 0x7F);
+        self.store16(0xFF1B, 0xFF);
+        self.store16(0xFF1C, 0x9F);
+        self.store16(0xFF1E, 0xBF);
+        self.store16(0xFF20, 0xFF);
+        self.store16(0xFF21, 0x00);
+        self.store16(0xFF22, 0x00);
+        self.store16(0xFF23, 0xBF);
+        self.store16(0xFF24, 0x77);
+        self.store16(0xFF25, 0xF3);
+        self.store16(0xFF26, 0xF1);
+        self.store16(0xFF40, 0x91);
+        self.store16(0xFF42, 0x00);
+        self.store16(0xFF43, 0x00);
+        self.store16(0xFF45, 0x00);
+        self.store16(0xFF47, 0xFC);
+        self.store16(0xFF48, 0xFF);
+        self.store16(0xFF49, 0xFF);
+        self.store16(0xFF4A, 0x00);
+        self.store16(0xFF4B, 0x00);
     }
 
     fn get_regs(&self, index: u16) -> u16 {
@@ -275,6 +273,29 @@ impl Cpu {
             }
             Opcode::ld_a_l => {
                 self.register.a = self.register.l;
+                return;
+            }
+            Opcode::ld_a_bc => {
+                let value = self.interconnect.load8(self.register.bc());
+                self.register.a = value;
+                return;
+            }
+            Opcode::ld_a_de => {
+                let value = self.interconnect.load8(self.register.de());
+                self.register.a = value;
+                return;
+            }
+            Opcode::ld_a_nn => {
+                //TODO: Probably incorrect.
+                let value = self.interconnect.load16(self.register.pc);
+                self.register.a = self.interconnect.load8(value);
+                self.register.pc = self.register.pc.wrapping_add(2);
+                return;
+            }
+            Opcode::ld_a_sharp => {
+                let value = self.interconnect.load8(self.register.pc);
+                self.register.a = value;
+                self.register.pc = self.register.pc.wrapping_add(1);
                 return;
             }
             Opcode::ld_a_hl => {
@@ -645,8 +666,7 @@ impl Cpu {
 
                 self.register.flag.z = res == 0;
                 self.register.flag.n = false;
-                self.register.flag.h =
-                    (self.register.a & 0xF) + (value as u8 & 0xF) > 0xF;
+                self.register.flag.h = (self.register.a & 0xF) + (value as u8 & 0xF) > 0xF;
                 self.register.flag.c = (self.register.a as u16) + (value as u16) > 0xF;
 
                 self.register.a = res;
@@ -694,7 +714,7 @@ impl Cpu {
             }
 
             Opcode::call_nn => {
-              self.register.sp -= 2;
+                self.register.sp -= 2;
 
                 let value = self.register.pc;
 
@@ -707,6 +727,175 @@ impl Cpu {
                 self.register.pc = nn;
 
                 return;
+            }
+
+            Opcode::di => {
+                // TODO: Probably incorrect implementation.
+                // Require delay for executing.
+
+                self.interconnect.interrupt = 0;
+                return;
+            }
+
+            Opcode::xor_a_a => {
+                let res = self.register.a ^ self.register.a;
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = false;
+                self.register.flag.h = false;
+                self.register.flag.c = false;
+
+                self.register.a = res;
+                return;
+            }
+
+            Opcode::xor_a_b => {
+                let res = self.register.a ^ self.register.b;
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = false;
+                self.register.flag.h = false;
+                self.register.flag.c = false;
+
+                self.register.a = res;
+                return;
+            }
+
+            Opcode::xor_a_c => {
+                let res = self.register.a ^ self.register.c;
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = false;
+                self.register.flag.h = false;
+                self.register.flag.c = false;
+
+                self.register.a = res;
+                return;
+            }
+
+            Opcode::xor_a_d => {
+                let res = self.register.a ^ self.register.d;
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = false;
+                self.register.flag.h = false;
+                self.register.flag.c = false;
+
+                self.register.a = res;
+                return;
+            }
+
+            Opcode::xor_a_e => {
+                let res = self.register.a ^ self.register.e;
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = false;
+                self.register.flag.h = false;
+                self.register.flag.c = false;
+
+                self.register.a = res;
+                return;
+            }
+
+            Opcode::xor_a_h => {
+                let res = self.register.a ^ self.register.h;
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = false;
+                self.register.flag.h = false;
+                self.register.flag.c = false;
+
+                self.register.a = res;
+                return;
+            }
+
+            Opcode::xor_a_l => {
+                let res = self.register.a ^ self.register.l;
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = false;
+                self.register.flag.h = false;
+                self.register.flag.c = false;
+
+                self.register.a = res;
+                return;
+            }
+
+            Opcode::xor_a_hl => {
+                let value = self.interconnect.load8(self.register.hl());
+                let res = self.register.a ^ value;
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = false;
+                self.register.flag.h = false;
+                self.register.flag.c = false;
+
+                self.register.a = res;
+                return;
+            }
+
+            Opcode::xor_a_asterisk => {
+                let value = self.interconnect.load8(self.register.pc);
+                let res = self.register.a ^ value;
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = false;
+                self.register.flag.h = false;
+                self.register.flag.c = false;
+
+                self.register.a = res;
+
+                self.register.pc = self.register.pc.wrapping_add(1);
+
+                return;
+            }
+
+            Opcode::ret_nz => {
+                if !self.register.flag.z {
+                    self.register.pc = self.interconnect.load16(self.register.sp);
+                    self.register.sp = self.register.sp.wrapping_add(2);
+                }
+
+                return;
+            }
+
+            Opcode::ret_z => {
+                if self.register.flag.z {
+                    self.register.pc = self.interconnect.load16(self.register.sp);
+                    self.register.sp = self.register.sp.wrapping_add(2);
+                }
+
+                return;
+            }
+
+            Opcode::ret_nc => {
+                if !self.register.flag.c {
+                    self.register.pc = self.interconnect.load16(self.register.sp);
+                    self.register.sp = self.register.sp.wrapping_add(2);
+                }
+
+                return;
+            }
+
+            Opcode::ret_c => {
+                if self.register.flag.c {
+                    self.register.pc = self.interconnect.load16(self.register.sp);
+                    self.register.sp = self.register.sp.wrapping_add(2);
+                }
+
+                return;
+            }
+
+            Opcode::ldh_n_a => {
+                let addr = 0xFF00 | self.interconnect.load8(self.register.pc) as u16;
+                self.interconnect.store8(addr, self.register.a);
+            }
+
+            Opcode::ldh_a_n => {
+                let addr = 0xFF00 | self.interconnect.load8(self.register.pc) as u16;
+                self.register.a = self.interconnect.load8(addr);
+
+                self.register.pc = self.register.pc.wrapping_add(1);
             }
 
             Opcode::add_a_sharp => {

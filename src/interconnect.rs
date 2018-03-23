@@ -38,7 +38,7 @@ pub struct Interconnect {
     hram: Hram,
     io: IO,
 
-    interrupt: u8,
+    pub interrupt: u8,
 }
 
 impl Interconnect {
@@ -59,8 +59,16 @@ impl Interconnect {
             return self.rom.load8(offset);
         }
 
+        if let Some(offset) = map::HRAM.contains(addr) {
+            return self.hram.load8(offset);
+        }
+
+        if let Some(offset) = map::IO.contains(addr) {
+            return self.io.load8(offset);
+        }
+
         if 0xFFFF == addr {
-          return self.interrupt;
+            return self.interrupt;
         }
 
         panic!("Unhandled load 8bit address {:#x}", addr);
@@ -100,8 +108,8 @@ impl Interconnect {
         }
 
         if 0xFFFF == addr {
-          self.interrupt = value;
-          return;
+            self.interrupt = value;
+            return;
         }
 
         panic!("Unhandled store 8bit address {:#x}", addr);

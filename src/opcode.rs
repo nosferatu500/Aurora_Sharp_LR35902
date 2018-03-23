@@ -16,6 +16,10 @@ pub enum Opcode {
     ld_a_e = 0x7B,
     ld_a_h = 0x7C,
     ld_a_l = 0x7D,
+    ld_a_bc = 0x0A,
+    ld_a_de = 0x1A,
+    ld_a_nn = 0xFA,
+    ld_a_sharp = 0x3E,
     ld_a_hl = 0x7E,
     ld_b_b = 0x40,
     ld_b_c = 0x41,
@@ -103,10 +107,12 @@ pub enum Opcode {
     push_de = 0xD5,
     push_hl = 0xE5,
 
-    call_nn = 0xCD,    
+    call_nn = 0xCD,
 
     jp_nn = 0xC3,
     jp_hl = 0xE9,
+
+    di = 0xF3,
 
     rst_00 = 0xC7,
     rst_08 = 0xCF,
@@ -116,6 +122,25 @@ pub enum Opcode {
     rst_28 = 0xEF,
     rst_30 = 0xF7,
     rst_38 = 0xFF,
+
+    xor_a_a = 0xAF,
+    xor_a_b = 0xA8,
+    xor_a_c = 0xA9,
+    xor_a_d = 0xAA,
+    xor_a_e = 0xAB,
+    xor_a_h = 0xAC,
+    xor_a_l = 0xAD,
+    xor_a_hl = 0xAE,
+    xor_a_asterisk = 0xEE,
+
+    ldh_n_a = 0xE0,
+
+    ldh_a_n = 0xF0,
+
+    ret_nz = 0xC0,
+    ret_z = 0xC8,
+    ret_nc = 0xD0,
+    ret_c = 0xD8,
 }
 
 impl Opcode {
