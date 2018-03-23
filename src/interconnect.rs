@@ -2,6 +2,7 @@ use rom::Rom;
 use wram::Wram;
 use echo::Echo;
 use hram::Hram;
+use io::IO;
 
 mod map {
     pub struct Range(u16, u16);
@@ -35,6 +36,9 @@ pub struct Interconnect {
     wram: Wram,
     echo: Echo,
     hram: Hram,
+    io: IO,
+
+    interrupt: u8,
 }
 
 impl Interconnect {
@@ -44,12 +48,19 @@ impl Interconnect {
             wram: Wram::new(),
             echo: Echo::new(),
             hram: Hram::new(),
+            io: IO::new(),
+
+            interrupt: 0,
         }
     }
 
     pub fn load8(&self, addr: u16) -> u8 {
         if let Some(offset) = map::ROM.contains(addr) {
             return self.rom.load8(offset);
+        }
+
+        if 0xFFFF == addr {
+          return self.interrupt;
         }
 
         panic!("Unhandled load 8bit address {:#x}", addr);
@@ -82,6 +93,15 @@ impl Interconnect {
                 self.wram.store8(addr, value)
             }
             return self.echo.store8(offset, value);
+        }
+
+        if let Some(offset) = map::IO.contains(addr) {
+            return self.io.store8(offset, value);
+        }
+
+        if 0xFFFF == addr {
+          self.interrupt = value;
+          return;
         }
 
         panic!("Unhandled store 8bit address {:#x}", addr);

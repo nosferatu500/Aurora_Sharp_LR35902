@@ -136,6 +136,46 @@ impl Cpu {
         }
     }
 
+    fn store16(&mut self, addr: u16, value: u16) {
+      self.interconnect
+          .store8(addr, (value & 0xff) as u8);
+      self.interconnect
+          .store8(addr + 1, (value >> 8) as u8);
+    }
+
+    pub fn power_up(&mut self) {
+      self.store16(0xFF05, 0x00);
+      self.store16(0xFF06, 0x00);
+      self.store16(0xFF07, 0x00);
+      self.store16(0xFF10, 0x80);
+      self.store16(0xFF11, 0xBF);
+      self.store16(0xFF12, 0xF3);
+      self.store16(0xFF14, 0xBF);
+      self.store16(0xFF16, 0x3F);
+      self.store16(0xFF17, 0x00);
+      self.store16(0xFF19, 0xBF);
+      self.store16(0xFF1A, 0x7F);
+      self.store16(0xFF1B, 0xFF);
+      self.store16(0xFF1C, 0x9F);
+      self.store16(0xFF1E, 0xBF);
+      self.store16(0xFF20, 0xFF);
+      self.store16(0xFF21, 0x00);
+      self.store16(0xFF22, 0x00);
+      self.store16(0xFF23, 0xBF);
+      self.store16(0xFF24, 0x77);
+      self.store16(0xFF25, 0xF3);
+      self.store16(0xFF26, 0xF1);
+      self.store16(0xFF40, 0x91);
+      self.store16(0xFF42, 0x00);
+      self.store16(0xFF43, 0x00);
+      self.store16(0xFF45, 0x00);
+      self.store16(0xFF47, 0xFC);
+      self.store16(0xFF48, 0xFF);
+      self.store16(0xFF49, 0xFF);
+      self.store16(0xFF4A, 0x00);
+      self.store16(0xFF4B, 0x00);
+    }
+    
     fn get_regs(&self, index: u16) -> u16 {
         self.regs[index as usize]
     }
@@ -898,10 +938,5 @@ impl Cpu {
                 return;
             }
         }
-
-        panic!(
-            "Unknown instruction: {:#06x} {:016b}",
-            instruction, instruction
-        );
     }
 }

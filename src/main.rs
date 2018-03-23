@@ -7,6 +7,7 @@ mod opcode;
 mod wram;
 mod echo;
 mod hram;
+mod io;
 
 use cpu::Cpu;
 use interconnect::Interconnect;
@@ -20,6 +21,8 @@ fn main() {
     let inter = Interconnect::new(rom);
 
     let mut cpu = Cpu::new(inter);
+
+    cpu.power_up();
 
     let mut i = 0;
     loop {
