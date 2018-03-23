@@ -270,7 +270,8 @@ impl Cpu {
                 return;
             }
             Opcode::ld_a_hl => {
-                self.register.a = self.register.hl() as u8;
+                let addr = self.register.hl();
+                self.register.a = self.interconnect.load8(addr);
                 return;
             }
             Opcode::ld_b_b => {
@@ -298,7 +299,8 @@ impl Cpu {
                 return;
             }
             Opcode::ld_b_hl => {
-                self.register.b = self.register.hl() as u8;
+                let addr = self.register.hl();
+                self.register.b = self.interconnect.load8(addr);
                 return;
             }
             Opcode::ld_c_b => {
@@ -326,7 +328,8 @@ impl Cpu {
                 return;
             }
             Opcode::ld_c_hl => {
-                self.register.c = self.register.hl() as u8;
+                let addr = self.register.hl();
+                self.register.c = self.interconnect.load8(addr);
                 return;
             }
             Opcode::ld_d_b => {
@@ -354,7 +357,8 @@ impl Cpu {
                 return;
             }
             Opcode::ld_d_hl => {
-                self.register.d = self.interconnect.load8(self.register.hl());
+                let addr = self.register.hl();
+                self.register.d = self.interconnect.load8(addr);
                 return;
             }
             Opcode::ld_e_b => {
@@ -382,7 +386,8 @@ impl Cpu {
                 return;
             }
             Opcode::ld_e_hl => {
-                self.register.e = self.register.hl() as u8;
+                let addr = self.register.hl();
+                self.register.e = self.interconnect.load8(addr);
                 return;
             }
             Opcode::ld_h_b => {
@@ -410,7 +415,8 @@ impl Cpu {
                 return;
             }
             Opcode::ld_h_hl => {
-                self.register.h = self.register.hl() as u8;
+                let addr = self.register.hl();
+                self.register.h = self.interconnect.load8(addr);
                 return;
             }
             Opcode::ld_l_b => {
@@ -438,42 +444,50 @@ impl Cpu {
                 return;
             }
             Opcode::ld_l_hl => {
-                self.register.l = self.register.hl() as u8;
+                let addr = self.register.hl();
+                self.register.l = self.interconnect.load8(addr);
                 return;
             }
             Opcode::ld_hl_b => {
                 let value = self.register.b;
-                self.register.set_hl(value as u16);
+                let addr = self.register.hl();
+                self.interconnect.store8(addr, value);
                 return;
             }
             Opcode::ld_hl_c => {
                 let value = self.register.c;
-                self.register.set_hl(value as u16);
+                let addr = self.register.hl();
+                self.interconnect.store8(addr, value);
                 return;
             }
             Opcode::ld_hl_d => {
                 let value = self.register.d;
-                self.register.set_hl(value as u16);
+                let addr = self.register.hl();
+                self.interconnect.store8(addr, value);
                 return;
             }
             Opcode::ld_hl_e => {
                 let value = self.register.e;
-                self.register.set_hl(value as u16);
+                let addr = self.register.hl();
+                self.interconnect.store8(addr, value);
                 return;
             }
             Opcode::ld_hl_h => {
                 let value = self.register.h;
-                self.register.set_hl(value as u16);
+                let addr = self.register.hl();
+                self.interconnect.store8(addr, value);
                 return;
             }
             Opcode::ld_hl_l => {
                 let value = self.register.l;
-                self.register.set_hl(value as u16);
+                let addr = self.register.hl();
+                self.interconnect.store8(addr, value);
                 return;
             }
             Opcode::ld_hl_n => {
                 let value = self.interconnect.load8(self.current_pc);
-                self.register.set_hl(value as u16);
+                let addr = self.register.hl();
+                self.interconnect.store8(addr, value);
                 return;
             }
 
@@ -521,7 +535,8 @@ impl Cpu {
 
             Opcode::ld_hl_a => {
                 let value = self.register.a;
-                self.register.set_hl(value as u16);
+                let addr = self.register.hl();
+                self.interconnect.store8(addr, value);
                 return;
             }
 
@@ -617,13 +632,14 @@ impl Cpu {
             }
 
             Opcode::add_a_hl => {
-                let res = self.register.a.wrapping_add(self.register.hl() as u8);
+                let value = self.interconnect.load8(self.register.hl());
+                let res = self.register.a.wrapping_add(value as u8);
 
                 self.register.flag.z = res == 0;
                 self.register.flag.n = false;
                 self.register.flag.h =
-                    (self.register.a & 0xF) + (self.register.hl() as u8 & 0xF) > 0xF;
-                self.register.flag.c = (self.register.a as u16) + (self.register.hl() as u16) > 0xF;
+                    (self.register.a & 0xF) + (value as u8 & 0xF) > 0xF;
+                self.register.flag.c = (self.register.a as u16) + (value as u16) > 0xF;
 
                 self.register.a = res;
                 return;
@@ -783,12 +799,13 @@ impl Cpu {
             }
 
             Opcode::sub_a_hl => {
-                let res = self.register.a.wrapping_sub(self.register.hl() as u8);
+                let value = self.interconnect.load8(self.register.hl());
+                let res = self.register.a.wrapping_sub(value as u8);
 
                 self.register.flag.z = res == 0;
                 self.register.flag.n = true;
-                self.register.flag.h = (self.register.a & 0x0F) < (self.register.hl() as u8 & 0x0F);
-                self.register.flag.c = (self.register.a as u16) < (self.register.hl() as u16);
+                self.register.flag.h = (self.register.a & 0x0F) < (value as u8 & 0x0F);
+                self.register.flag.c = (self.register.a as u16) < (value as u16);
 
                 self.register.a = res;
                 return;
@@ -892,7 +909,7 @@ impl Cpu {
 
                 let addr = self.register.sp;
                 self.store16(addr, value);
-                
+
                 self.register.pc = 0x38;
                 return;
             }
