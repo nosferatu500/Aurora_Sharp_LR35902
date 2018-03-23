@@ -143,6 +143,13 @@ impl Cpu {
           .store8(addr + 1, (value >> 8) as u8);
     }
 
+    fn load16(&mut self, addr: u16) -> u16 {
+      let lhs = self.interconnect.load8(addr) as u16;
+      let rhs = (self.interconnect.load8(addr + 1) as u16) << 8;
+
+      return lhs | rhs;
+    }
+
     pub fn power_up(&mut self) {
       self.store16(0xFF05, 0x00);
       self.store16(0xFF06, 0x00);
@@ -175,7 +182,7 @@ impl Cpu {
       self.store16(0xFF4A, 0x00);
       self.store16(0xFF4B, 0x00);
     }
-    
+
     fn get_regs(&self, index: u16) -> u16 {
         self.regs[index as usize]
     }
@@ -206,40 +213,32 @@ impl Cpu {
             Opcode::nop => return,
 
             Opcode::ld_bc_nn => {
-                let lhs = self.interconnect.load8(self.register.pc) as u16;
-                let rhs = (self.interconnect.load8(self.register.pc + 1) as u16) << 8;
-
-                let nn = lhs | rhs;
+                let addr = self.register.pc;
+                let nn = self.load16(addr);
 
                 self.register.set_bc(nn);
                 return;
             }
 
             Opcode::ld_de_nn => {
-                let lhs = self.interconnect.load8(self.register.pc) as u16;
-                let rhs = (self.interconnect.load8(self.register.pc + 1) as u16) << 8;
-
-                let nn = lhs | rhs;
+                let addr = self.register.pc;
+                let nn = self.load16(addr);
 
                 self.register.set_de(nn);
                 return;
             }
 
             Opcode::ld_hl_nn => {
-                let lhs = self.interconnect.load8(self.register.pc) as u16;
-                let rhs = (self.interconnect.load8(self.register.pc + 1) as u16) << 8;
-
-                let nn = lhs | rhs;
+                let addr = self.register.pc;
+                let nn = self.load16(addr);
 
                 self.register.set_hl(nn);
                 return;
             }
 
             Opcode::ld_sp_nn => {
-                let lhs = self.interconnect.load8(self.register.pc) as u16;
-                let rhs = (self.interconnect.load8(self.register.pc + 1) as u16) << 8;
-
-                let nn = lhs | rhs;
+                let addr = self.register.pc;
+                let nn = self.load16(addr);
 
                 self.register.sp = nn;
                 return;
@@ -635,11 +634,8 @@ impl Cpu {
 
                 let value = self.register.af();
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
-
+                let addr = self.register.sp;
+                self.store16(addr, value);
                 return;
             }
 
@@ -648,11 +644,8 @@ impl Cpu {
 
                 let value = self.register.bc();
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
-
+                let addr = self.register.sp;
+                self.store16(addr, value);
                 return;
             }
 
@@ -661,11 +654,8 @@ impl Cpu {
 
                 let value = self.register.de();
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
-
+                let addr = self.register.sp;
+                self.store16(addr, value);
                 return;
             }
 
@@ -674,11 +664,8 @@ impl Cpu {
 
                 let value = self.register.hl();
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
-
+                let addr = self.register.sp;
+                self.store16(addr, value);
                 return;
             }
 
@@ -687,15 +674,11 @@ impl Cpu {
 
                 let value = self.register.pc;
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
+                let mut addr = self.register.sp;
+                self.store16(addr, value);
 
-                let lhs = self.interconnect.load8(self.register.pc) as u16;
-                let rhs = (self.interconnect.load8(self.register.pc + 1) as u16) << 8;
-
-                let nn = lhs | rhs;
+                addr = self.register.pc;
+                let nn = self.load16(addr);
 
                 self.register.pc = nn;
 
@@ -826,10 +809,9 @@ impl Cpu {
 
             Opcode::jp_nn => {
                 self.clock.m += 4;
-                let lhs = self.interconnect.load8(self.register.pc) as u16;
-                let rhs = (self.interconnect.load8(self.register.pc + 1) as u16) << 8;
 
-                let nn = lhs | rhs;
+                let addr = self.register.pc;
+                let nn = self.load16(addr);
 
                 self.register.pc = nn;
                 return;
@@ -838,10 +820,8 @@ impl Cpu {
             Opcode::rst_00 => {
                 let value = self.current_pc;
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
+                let addr = self.register.sp;
+                self.store16(addr, value);
 
                 self.register.pc = 0x00;
                 return;
@@ -850,10 +830,8 @@ impl Cpu {
             Opcode::rst_08 => {
                 let value = self.current_pc;
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
+                let addr = self.register.sp;
+                self.store16(addr, value);
 
                 self.register.pc = 0x08;
                 return;
@@ -862,10 +840,8 @@ impl Cpu {
             Opcode::rst_10 => {
                 let value = self.current_pc;
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
+                let addr = self.register.sp;
+                self.store16(addr, value);
 
                 self.register.pc = 0x10;
                 return;
@@ -874,10 +850,8 @@ impl Cpu {
             Opcode::rst_18 => {
                 let value = self.current_pc;
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
+                let addr = self.register.sp;
+                self.store16(addr, value);
 
                 self.register.pc = 0x18;
                 return;
@@ -886,10 +860,8 @@ impl Cpu {
             Opcode::rst_20 => {
                 let value = self.current_pc;
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
+                let addr = self.register.sp;
+                self.store16(addr, value);
 
                 self.register.pc = 0x20;
                 return;
@@ -898,10 +870,8 @@ impl Cpu {
             Opcode::rst_28 => {
                 let value = self.current_pc;
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
+                let addr = self.register.sp;
+                self.store16(addr, value);
 
                 self.register.pc = 0x28;
                 return;
@@ -910,10 +880,8 @@ impl Cpu {
             Opcode::rst_30 => {
                 let value = self.current_pc;
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
+                let addr = self.register.sp;
+                self.store16(addr, value);
 
                 self.register.pc = 0x30;
                 return;
@@ -922,11 +890,9 @@ impl Cpu {
             Opcode::rst_38 => {
                 let value = self.current_pc;
 
-                self.interconnect
-                    .store8(self.register.sp, (value & 0xff) as u8);
-                self.interconnect
-                    .store8(self.register.sp + 1, (value >> 8) as u8);
-
+                let addr = self.register.sp;
+                self.store16(addr, value);
+                
                 self.register.pc = 0x38;
                 return;
             }
