@@ -582,10 +582,83 @@ impl Cpu {
 
                 self.register.flag.z = res == 0;
                 self.register.flag.n = false;
-                self.register.flag.h = (self.register.a & 0xF) + (self.register.hl() as u8 & 0xF) > 0xF;
+                self.register.flag.h =
+                    (self.register.a & 0xF) + (self.register.hl() as u8 & 0xF) > 0xF;
                 self.register.flag.c = (self.register.a as u16) + (self.register.hl() as u16) > 0xF;
 
                 self.register.a = res;
+                return;
+            }
+
+            Opcode::push_af => {
+                self.register.sp -= 2;
+
+                let value = self.register.af();
+
+                self.interconnect
+                    .store8(self.register.sp, (value & 0xff) as u8);
+                self.interconnect
+                    .store8(self.register.sp + 1, (value >> 8) as u8);
+
+                return;
+            }
+
+            Opcode::push_bc => {
+                self.register.sp -= 2;
+
+                let value = self.register.bc();
+
+                self.interconnect
+                    .store8(self.register.sp, (value & 0xff) as u8);
+                self.interconnect
+                    .store8(self.register.sp + 1, (value >> 8) as u8);
+
+                return;
+            }
+
+            Opcode::push_de => {
+                self.register.sp -= 2;
+
+                let value = self.register.de();
+
+                self.interconnect
+                    .store8(self.register.sp, (value & 0xff) as u8);
+                self.interconnect
+                    .store8(self.register.sp + 1, (value >> 8) as u8);
+
+                return;
+            }
+
+            Opcode::push_hl => {
+                self.register.sp -= 2;
+
+                let value = self.register.hl();
+
+                self.interconnect
+                    .store8(self.register.sp, (value & 0xff) as u8);
+                self.interconnect
+                    .store8(self.register.sp + 1, (value >> 8) as u8);
+
+                return;
+            }
+
+            Opcode::call_nn => {
+              self.register.sp -= 2;
+
+                let value = self.register.pc;
+
+                self.interconnect
+                    .store8(self.register.sp, (value & 0xff) as u8);
+                self.interconnect
+                    .store8(self.register.sp + 1, (value >> 8) as u8);
+
+                let lhs = self.interconnect.load8(self.register.pc) as u16;
+                let rhs = (self.interconnect.load8(self.register.pc + 1) as u16) << 8;
+
+                let nn = lhs | rhs;
+
+                self.register.pc = nn;
+
                 return;
             }
 

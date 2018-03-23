@@ -1,6 +1,7 @@
 use rom::Rom;
 use wram::Wram;
 use echo::Echo;
+use hram::Hram;
 
 mod map {
     pub struct Range(u16, u16);
@@ -33,6 +34,7 @@ pub struct Interconnect {
     rom: Rom,
     wram: Wram,
     echo: Echo,
+    hram: Hram,
 }
 
 impl Interconnect {
@@ -41,6 +43,7 @@ impl Interconnect {
             rom,
             wram: Wram::new(),
             echo: Echo::new(),
+            hram: Hram::new(),
         }
     }
 
@@ -55,6 +58,10 @@ impl Interconnect {
     pub fn load16(&self, addr: u16) -> u16 {
         if let Some(offset) = map::ROM.contains(addr) {
             return self.rom.load16(offset);
+        }
+
+        if let Some(offset) = map::HRAM.contains(addr) {
+            return self.hram.load16(offset);
         }
 
         panic!("Unhandled load 16bit address {:#x}", addr);

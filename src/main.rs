@@ -6,6 +6,7 @@ mod rom;
 mod opcode;
 mod wram;
 mod echo;
+mod hram;
 
 use cpu::Cpu;
 use interconnect::Interconnect;

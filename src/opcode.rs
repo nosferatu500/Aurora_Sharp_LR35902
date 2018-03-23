@@ -98,6 +98,13 @@ pub enum Opcode {
     sub_a_hl = 0x96,
     sub_a_sharp = 0xD6,
 
+    push_af = 0xF5,
+    push_bc = 0xC5,
+    push_de = 0xD5,
+    push_hl = 0xE5,
+
+    call_nn = 0xCD,    
+
     jp_nn = 0xC3,
     jp_hl = 0xE9,
 
