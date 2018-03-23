@@ -119,7 +119,7 @@ pub enum Opcode {
 }
 
 impl Opcode {
-    pub fn find(self, value: u16) -> Opcode {
-        unsafe { mem::transmute(value as u8) }
+    pub fn find(self, value: u8) -> Opcode {
+        unsafe { mem::transmute(value) }
     }
 }

@@ -122,7 +122,7 @@ impl Cpu {
     pub fn new(interconnect: Interconnect) -> Cpu {
         let pc = 0x0100;
         Cpu {
-            regs: [0xdeadbeef; 16],
+            regs: [0; 16],
 
             current_pc: pc,
 
@@ -192,19 +192,19 @@ impl Cpu {
     }
 
     pub fn run_next_instruction(&mut self) {
-        let instruction = self.interconnect.load16(self.register.pc);
+        let instruction = self.interconnect.load8(self.register.pc);
 
         self.current_pc = self.register.pc;
 
         let pc = self.register.pc;
 
-        self.register.pc = pc.wrapping_add(2);
+        self.register.pc = pc.wrapping_add(1);
 
         self.decode(instruction);
     }
 
-    fn decode(&mut self, instruction: u16) {
-        let value = (instruction >> 8) & 0xff;
+    fn decode(&mut self, instruction: u8) {
+        let value = instruction & 0xff;
         let opcode = self.op.find(value);
 
         println!("Opcode: {:#x}", value);
@@ -216,6 +216,8 @@ impl Cpu {
                 let addr = self.register.pc;
                 let nn = self.load16(addr);
 
+                self.register.pc = self.register.pc.wrapping_add(2);
+
                 self.register.set_bc(nn);
                 return;
             }
@@ -223,6 +225,8 @@ impl Cpu {
             Opcode::ld_de_nn => {
                 let addr = self.register.pc;
                 let nn = self.load16(addr);
+
+                self.register.pc = self.register.pc.wrapping_add(2);
 
                 self.register.set_de(nn);
                 return;
@@ -232,6 +236,8 @@ impl Cpu {
                 let addr = self.register.pc;
                 let nn = self.load16(addr);
 
+                self.register.pc = self.register.pc.wrapping_add(2);
+
                 self.register.set_hl(nn);
                 return;
             }
@@ -239,6 +245,8 @@ impl Cpu {
             Opcode::ld_sp_nn => {
                 let addr = self.register.pc;
                 let nn = self.load16(addr);
+
+                self.register.pc = self.register.pc.wrapping_add(2);
 
                 self.register.sp = nn;
                 return;
