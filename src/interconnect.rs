@@ -83,6 +83,14 @@ impl Interconnect {
             return self.hram.load16(offset);
         }
 
+        if let Some(offset) = map::WRAM.contains(addr) {
+            return self.wram.load16(offset);
+        }
+
+        if let Some(offset) = map::ECHO.contains(addr) {
+            return self.echo.load16(offset);
+        }
+
         panic!("Unhandled load 16bit address {:#x}", addr);
     }
 

@@ -911,6 +911,176 @@ impl Cpu {
                 return;
             }
 
+            Opcode::cp_a_a => {
+                let res = self.register.a.wrapping_sub(self.register.a);
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = true;
+                self.register.flag.h = (self.register.a & 0x0F) < (self.register.a & 0x0F);
+                self.register.flag.c = (self.register.a as u16) < (self.register.a as u16);
+
+                self.register.a = self.register.a;
+                return;
+            }
+
+            Opcode::cp_a_b => {
+                let res = self.register.a.wrapping_sub(self.register.b);
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = true;
+                self.register.flag.h = (self.register.a & 0x0F) < (self.register.b & 0x0F);
+                self.register.flag.c = (self.register.a as u16) < (self.register.b as u16);
+
+                self.register.a = self.register.a;
+                return;
+            }
+
+            Opcode::cp_a_c => {
+                let res = self.register.a.wrapping_sub(self.register.c);
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = true;
+                self.register.flag.h = (self.register.a & 0x0F) < (self.register.c & 0x0F);
+                self.register.flag.c = (self.register.a as u16) < (self.register.c as u16);
+
+                self.register.a = self.register.a;
+                return;
+            }
+
+            Opcode::cp_a_d => {
+                let res = self.register.a.wrapping_sub(self.register.d);
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = true;
+                self.register.flag.h = (self.register.a & 0x0F) < (self.register.d & 0x0F);
+                self.register.flag.c = (self.register.a as u16) < (self.register.d as u16);
+
+                self.register.a = self.register.a;
+                return;
+            }
+
+            Opcode::cp_a_e => {
+                let res = self.register.a.wrapping_sub(self.register.e);
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = true;
+                self.register.flag.h = (self.register.a & 0x0F) < (self.register.e & 0x0F);
+                self.register.flag.c = (self.register.a as u16) < (self.register.e as u16);
+
+                self.register.a = self.register.a;
+                return;
+            }
+
+            Opcode::cp_a_h => {
+                let res = self.register.a.wrapping_sub(self.register.h);
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = true;
+                self.register.flag.h = (self.register.a & 0x0F) < (self.register.h & 0x0F);
+                self.register.flag.c = (self.register.a as u16) < (self.register.h as u16);
+
+                self.register.a = self.register.a;
+                return;
+            }
+
+            Opcode::cp_a_l => {
+                let res = self.register.a.wrapping_sub(self.register.l);
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = true;
+                self.register.flag.h = (self.register.a & 0x0F) < (self.register.l & 0x0F);
+                self.register.flag.c = (self.register.a as u16) < (self.register.l as u16);
+
+                self.register.a = self.register.a;
+                return;
+            }
+
+            Opcode::cp_a_hl => {
+                let value = self.interconnect.load8(self.register.hl());
+                let res = self.register.a.wrapping_sub(value as u8);
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = true;
+                self.register.flag.h = (self.register.a & 0x0F) < (value as u8 & 0x0F);
+                self.register.flag.c = (self.register.a as u16) < (value as u16);
+
+                self.register.a = self.register.a;
+                return;
+            }
+
+            Opcode::cp_a_sharp => {
+                let value = self.interconnect.load8(self.current_pc);
+                let res = self.register.a.wrapping_sub(value);
+
+                self.register.flag.z = res == 0;
+                self.register.flag.n = true;
+                self.register.flag.h = (self.register.a & 0x0F) < (value & 0x0F);
+                self.register.flag.c = (self.register.a as u16) < (value as u16);
+
+                self.register.a = self.register.a;
+                return;
+            }
+
+            Opcode::jr_nz_n => {
+                if !self.register.flag.z {
+                    let n = self.interconnect.load8(self.register.pc);
+                    
+                    self.register.pc = self.register.pc.wrapping_add(1);
+                    self.register.pc = ((self.register.pc as i32).wrapping_add(n as i32)) as u16;
+                } else {
+                    self.register.pc = self.register.pc.wrapping_add(1);
+                }
+
+                return;
+            }
+
+            Opcode::jr_z_n => {
+                if self.register.flag.z {
+                    let n = self.interconnect.load8(self.register.pc);
+                    
+                    self.register.pc = self.register.pc.wrapping_add(1);
+                    self.register.pc = ((self.register.pc as i32).wrapping_add(n as i32)) as u16;
+                } else {
+                    self.register.pc = self.register.pc.wrapping_add(1);
+                }
+
+                return;
+            }
+
+            Opcode::jr_nc_n => {
+                if !self.register.flag.c {
+                    let n = self.interconnect.load8(self.register.pc);
+                    
+                    self.register.pc = self.register.pc.wrapping_add(1);
+                    self.register.pc = ((self.register.pc as i32).wrapping_add(n as i32)) as u16;
+                } else {
+                    self.register.pc = self.register.pc.wrapping_add(1);
+                }
+
+                return;
+            }
+
+            Opcode::jr_c_n => {
+                if self.register.flag.c {
+                    let n = self.interconnect.load8(self.register.pc);
+                    
+                    self.register.pc = self.register.pc.wrapping_add(1);
+                    self.register.pc = ((self.register.pc as i32).wrapping_add(n as i32)) as u16;
+                } else {
+                    self.register.pc = self.register.pc.wrapping_add(1);
+                }
+
+                return;
+            }
+
+            Opcode::ret => {
+                let res = self.interconnect.load16(self.register.sp);
+                self.register.sp = self.register.sp.wrapping_add(2);
+
+                self.register.pc = res;
+                return;
+            }
+
             Opcode::sub_a_a => {
                 let res = self.register.a.wrapping_sub(self.register.a);
 

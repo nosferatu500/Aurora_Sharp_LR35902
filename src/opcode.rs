@@ -141,6 +141,23 @@ pub enum Opcode {
     ret_z = 0xC8,
     ret_nc = 0xD0,
     ret_c = 0xD8,
+
+    cp_a_a = 0xBF,
+    cp_a_b = 0xB8,
+    cp_a_c = 0xB9,
+    cp_a_d = 0xBA,
+    cp_a_e = 0xBB,
+    cp_a_h = 0xBC,
+    cp_a_l = 0xBD,
+    cp_a_hl = 0xBE,
+    cp_a_sharp = 0xFE,
+
+    jr_nz_n = 0x20,
+    jr_z_n = 0x28,
+    jr_nc_n = 0x30,
+    jr_c_n = 0x38,
+
+    ret = 0xC9,
 }
 
 impl Opcode {
