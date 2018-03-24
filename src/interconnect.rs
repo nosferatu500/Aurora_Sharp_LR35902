@@ -2,8 +2,9 @@ use rom::Rom;
 use wram::Wram;
 use echo::Echo;
 use hram::Hram;
-use io::IO;
 use eram::Eram;
+use sdt::Sdt;
+use timer::Timer;
 
 mod map {
     pub struct Range(u16, u16);
@@ -37,8 +38,9 @@ pub struct Interconnect {
     wram: Wram,
     echo: Echo,
     hram: Hram,
-    io: IO,
     eram: Eram,
+    sdt: Sdt,
+    timer: Timer,
 
     pub interrupt_enable: u8,
     pub interrupt_flag: u8,
@@ -51,13 +53,22 @@ impl Interconnect {
             wram: Wram::new(),
             echo: Echo::new(),
             hram: Hram::new(),
-            io: IO::new(),
             eram: Eram::new(),
+            sdt: Sdt::new(),
+            timer: Timer::new(),
 
             interrupt_enable: 0,
             interrupt_flag: 0,
         }
     }
+
+    pub fn cycle(&mut self, ticks: u32) {
+		self.timer.cycle(ticks);
+
+		self.interrupt_flag |= self.timer.interrupt;
+		
+        self.timer.interrupt = 0;
+	}
 
     pub fn load8(&self, addr: u16) -> u8 {
         if let Some(offset) = map::ROM.contains(addr) {
@@ -73,7 +84,16 @@ impl Interconnect {
         }
 
         if let Some(offset) = map::IO.contains(addr) {
-            return self.io.load8(offset);
+            match addr {
+                0xFF01 => return self.sdt.rb(addr),
+                0xFF02 => return self.sdt.rb(addr),
+                0xFF04 => return self.timer.rb(addr),
+                0xFF05 => return self.timer.rb(addr),
+                0xFF06 => return self.timer.rb(addr),
+                0xFF07 => return self.timer.rb(addr),
+                _ => println!("Load IO part not implemented addr: {:#x} offset: {:#x}", addr, offset),
+            };
+            return 0;
         }
 
         if 0xFF0F == addr {
@@ -133,7 +153,16 @@ impl Interconnect {
         }
 
         if let Some(offset) = map::IO.contains(addr) {
-            return self.io.store8(offset, value);
+            match addr {
+                0xFF01 => { return self.sdt.wb(addr, value); },
+                0xFF02 => { return self.sdt.wb(addr, value); },
+                0xFF04 => { return self.timer.wb(addr, value); },
+                0xFF05 => { return self.timer.wb(addr, value); },
+                0xFF06 => { return self.timer.wb(addr, value); },
+                0xFF07 => { return self.timer.wb(addr, value); },
+                _ => println!("Store IO part not implemented addr: {:#x} offset: {:#x}", addr, offset),
+            }
+            return;
         }
 
         if 0xFF0F == addr {

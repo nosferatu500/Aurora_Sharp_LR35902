@@ -1,17 +1,6 @@
 use interconnect::Interconnect;
 use opcode::Opcode;
 
-struct Clock {
-    m: u16,
-    t: u16,
-}
-
-impl Clock {
-    pub fn new() -> Clock {
-        Clock { m: 0, t: 0 }
-    }
-}
-
 #[derive(Clone, Copy)]
 struct Flag {
     z: bool, // 7
@@ -109,11 +98,9 @@ pub struct Cpu {
 
     current_pc: u16,
 
-    interconnect: Interconnect,
+    pub interconnect: Interconnect,
 
     register: Register,
-
-    clock: Clock,
 
     op: Opcode,
 
@@ -137,13 +124,11 @@ impl Cpu {
 
             register: Register::new(),
 
-            clock: Clock::new(),
-
             op: Opcode::jp_nn,
 
             halted: false,
 
-            ime: false,
+            ime: true,
 
             set_di: 0,
 			set_ei: 0,
@@ -163,6 +148,21 @@ impl Cpu {
 		};
 	}
 
+    pub fn cycle(&mut self) -> u32 {
+        self.update_ime();
+
+        match self.handle_interrupt() {
+            0 => {},
+            n => return n,
+        };
+        
+        if !self.halted {
+            self.run_next_instruction()        
+        } else {
+            1
+        }
+    }
+
     fn store16(&mut self, addr: u16, value: u16) {
         self.interconnect.store8(addr, (value & 0xff) as u8);
         self.interconnect.store8(addr + 1, (value >> 8) as u8);
@@ -175,14 +175,14 @@ impl Cpu {
         return lhs | rhs;
     }
 
-    pub fn handle_interrupt(&mut self) {
-        if self.ime == false && self.halted == false { return; }
+    pub fn handle_interrupt(&mut self) -> u32 {
+        if self.ime == false && self.halted == false { return 0 }
 		self.halted = false;
 
         let device = self.interconnect.interrupt_enable & self.interconnect.interrupt_flag;
-        if device == 0 { return; }
+        if device == 0 { return 0 }
 
-		if self.ime == false { return; }
+		if self.ime == false { return 0 }
 		self.ime = false;
 
         let n = device.trailing_zeros();
@@ -200,6 +200,8 @@ impl Cpu {
         
         self.register.pc = 0x0040 | ((n as u16) << 3);
         //////////////////////////////////////
+         
+        return 4
     }
 
     pub fn power_up(&mut self) {
@@ -243,7 +245,7 @@ impl Cpu {
         self.regs[index as usize] = value;
     }
 
-    pub fn run_next_instruction(&mut self) {
+    pub fn run_next_instruction(&mut self) -> u32 {
         let instruction = self.interconnect.load8(self.register.pc);
 
         self.current_pc = self.register.pc;
@@ -252,26 +254,23 @@ impl Cpu {
 
         self.register.pc = pc.wrapping_add(1);
 
-        self.decode(instruction);
+        self.decode(instruction)
     }
 
-    fn run_next_callback(&mut self) {
+    fn run_next_callback(&mut self) -> u32 {
         panic!("CALL BACK");
     }
 
-    fn decode(&mut self, instruction: u8) {
+    fn decode(&mut self, instruction: u8) -> u32 {
         let value = instruction & 0xff;
         let opcode = self.op.find(value);
 
         println!("Opcode: {:#x}", value);
 
         match opcode {
-            Opcode::nop => return,
+            Opcode::nop => 1,
 
-            Opcode::callback => {
-                self.run_next_callback();
-                return;
-            }
+            Opcode::callback => self.run_next_callback(),
 
             Opcode::ld_bc_nn => {
                 let addr = self.register.pc;
@@ -280,7 +279,7 @@ impl Cpu {
                 self.register.pc = self.register.pc.wrapping_add(2);
 
                 self.register.set_bc(nn);
-                return;
+                3
             }
 
             Opcode::ld_de_nn => {
@@ -290,7 +289,7 @@ impl Cpu {
                 self.register.pc = self.register.pc.wrapping_add(2);
 
                 self.register.set_de(nn);
-                return;
+                3
             }
 
             Opcode::ld_hl_nn => {
@@ -300,7 +299,7 @@ impl Cpu {
                 self.register.pc = self.register.pc.wrapping_add(2);
 
                 self.register.set_hl(nn);
-                return;
+                3
             }
 
             Opcode::ld_sp_nn => {
@@ -310,332 +309,332 @@ impl Cpu {
                 self.register.pc = self.register.pc.wrapping_add(2);
 
                 self.register.sp = nn;
-                return;
+                3
             }
 
-            Opcode::ld_a_a => return,
+            Opcode::ld_a_a => 1,
             Opcode::ld_a_b => {
                 self.register.a = self.register.b;
-                return;
+                1
             }
             Opcode::ld_a_c => {
                 self.register.a = self.register.c;
-                return;
+                1
             }
             Opcode::ld_a_d => {
                 self.register.a = self.register.d;
-                return;
+                1
             }
             Opcode::ld_a_e => {
                 self.register.a = self.register.e;
-                return;
+                1
             }
             Opcode::ld_a_h => {
                 self.register.a = self.register.h;
-                return;
+                1
             }
             Opcode::ld_a_l => {
                 self.register.a = self.register.l;
-                return;
+                1
             }
             Opcode::ld_a_bc => {
                 let value = self.interconnect.load8(self.register.bc());
                 self.register.a = value;
-                return;
+                2
             }
             Opcode::ld_a_de => {
                 let value = self.interconnect.load8(self.register.de());
                 self.register.a = value;
-                return;
+                2
             }
             Opcode::ld_a_nn => {
                 let value = self.interconnect.load16(self.register.pc);
                 self.register.a = self.interconnect.load8(value);
                 self.register.pc = self.register.pc.wrapping_add(2);
-                return;
+                4
             }
             Opcode::ld_a_sharp => {
                 let value = self.interconnect.load8(self.register.pc);
                 self.register.a = value;
                 self.register.pc = self.register.pc.wrapping_add(1);
-                return;
+                2
             }
             Opcode::ld_a_hl => {
                 let addr = self.register.hl();
                 self.register.a = self.interconnect.load8(addr);
-                return;
+                2
             }
             Opcode::ld_b_b => {
                 self.register.b = self.register.b;
-                return;
+                1
             }
             Opcode::ld_b_c => {
                 self.register.b = self.register.c;
-                return;
+                1
             }
             Opcode::ld_b_d => {
                 self.register.b = self.register.d;
-                return;
+                1
             }
             Opcode::ld_b_e => {
                 self.register.b = self.register.e;
-                return;
+                1
             }
             Opcode::ld_b_h => {
                 self.register.b = self.register.h;
-                return;
+                1
             }
             Opcode::ld_b_l => {
                 self.register.b = self.register.l;
-                return;
+                1
             }
             Opcode::ld_b_hl => {
                 let addr = self.register.hl();
                 self.register.b = self.interconnect.load8(addr);
-                return;
+                2
             }
             Opcode::ld_c_b => {
                 self.register.c = self.register.b;
-                return;
+                1
             }
             Opcode::ld_c_c => {
                 self.register.c = self.register.c;
-                return;
+                1
             }
             Opcode::ld_c_d => {
                 self.register.c = self.register.d;
-                return;
+                1
             }
             Opcode::ld_c_e => {
                 self.register.c = self.register.e;
-                return;
+                1
             }
             Opcode::ld_c_h => {
                 self.register.c = self.register.h;
-                return;
+                1
             }
             Opcode::ld_c_l => {
                 self.register.c = self.register.l;
-                return;
+                1
             }
             Opcode::ld_c_hl => {
                 let addr = self.register.hl();
                 self.register.c = self.interconnect.load8(addr);
-                return;
+                2
             }
             Opcode::ld_d_b => {
                 self.register.d = self.register.b;
-                return;
+                1
             }
             Opcode::ld_d_c => {
                 self.register.d = self.register.c;
-                return;
+                1
             }
             Opcode::ld_d_d => {
                 self.register.d = self.register.d;
-                return;
+                1
             }
             Opcode::ld_d_e => {
                 self.register.d = self.register.e;
-                return;
+                1
             }
             Opcode::ld_d_h => {
                 self.register.d = self.register.h;
-                return;
+                1
             }
             Opcode::ld_d_l => {
                 self.register.d = self.register.l;
-                return;
+                1
             }
             Opcode::ld_d_hl => {
                 let addr = self.register.hl();
                 self.register.d = self.interconnect.load8(addr);
-                return;
+                2
             }
             Opcode::ld_e_b => {
                 self.register.e = self.register.b;
-                return;
+                1
             }
             Opcode::ld_e_c => {
                 self.register.e = self.register.c;
-                return;
+                1
             }
             Opcode::ld_e_d => {
                 self.register.e = self.register.d;
-                return;
+                1
             }
             Opcode::ld_e_e => {
                 self.register.e = self.register.e;
-                return;
+                1
             }
             Opcode::ld_e_h => {
                 self.register.e = self.register.h;
-                return;
+                1
             }
             Opcode::ld_e_l => {
                 self.register.e = self.register.l;
-                return;
+                1
             }
             Opcode::ld_e_hl => {
                 let addr = self.register.hl();
                 self.register.e = self.interconnect.load8(addr);
-                return;
+                2
             }
             Opcode::ld_h_b => {
                 self.register.h = self.register.b;
-                return;
+                1
             }
             Opcode::ld_h_c => {
                 self.register.h = self.register.c;
-                return;
+                1
             }
             Opcode::ld_h_d => {
                 self.register.h = self.register.d;
-                return;
+                1
             }
             Opcode::ld_h_e => {
                 self.register.h = self.register.e;
-                return;
+                1
             }
             Opcode::ld_h_h => {
                 self.register.h = self.register.h;
-                return;
+                1
             }
             Opcode::ld_h_l => {
                 self.register.h = self.register.l;
-                return;
+                1
             }
             Opcode::ld_h_hl => {
                 let addr = self.register.hl();
                 self.register.h = self.interconnect.load8(addr);
-                return;
+                2
             }
             Opcode::ld_l_b => {
                 self.register.l = self.register.b;
-                return;
+                1
             }
             Opcode::ld_l_c => {
                 self.register.l = self.register.c;
-                return;
+                1
             }
             Opcode::ld_l_d => {
                 self.register.l = self.register.d;
-                return;
+                1
             }
             Opcode::ld_l_e => {
                 self.register.l = self.register.e;
-                return;
+                1
             }
             Opcode::ld_l_h => {
                 self.register.l = self.register.h;
-                return;
+                1
             }
             Opcode::ld_l_l => {
                 self.register.l = self.register.l;
-                return;
+                1
             }
             Opcode::ld_l_hl => {
                 let addr = self.register.hl();
                 self.register.l = self.interconnect.load8(addr);
-                return;
+                2
             }
             Opcode::ld_hl_b => {
                 let value = self.register.b;
                 let addr = self.register.hl();
                 self.interconnect.store8(addr, value);
-                return;
+                2
             }
             Opcode::ld_hl_c => {
                 let value = self.register.c;
                 let addr = self.register.hl();
                 self.interconnect.store8(addr, value);
-                return;
+                2
             }
             Opcode::ld_hl_d => {
                 let value = self.register.d;
                 let addr = self.register.hl();
                 self.interconnect.store8(addr, value);
-                return;
+                2
             }
             Opcode::ld_hl_e => {
                 let value = self.register.e;
                 let addr = self.register.hl();
                 self.interconnect.store8(addr, value);
-                return;
+                2
             }
             Opcode::ld_hl_h => {
                 let value = self.register.h;
                 let addr = self.register.hl();
                 self.interconnect.store8(addr, value);
-                return;
+                2
             }
             Opcode::ld_hl_l => {
                 let value = self.register.l;
                 let addr = self.register.hl();
                 self.interconnect.store8(addr, value);
-                return;
+                2
             }
             Opcode::ld_hl_n => {
                 let value = self.interconnect.load8(self.current_pc);
                 let addr = self.register.hl();
                 self.interconnect.store8(addr, value);
-                return;
+                4
             }
 
             Opcode::ld_b_a => {
                 self.register.b = self.register.a;
-                return;
+                2
             }
 
             Opcode::ld_c_a => {
                 self.register.c = self.register.a;
-                return;
+                2
             }
 
             Opcode::ld_d_a => {
                 self.register.d = self.register.a;
-                return;
+                2
             }
 
             Opcode::ld_e_a => {
                 self.register.e = self.register.a;
-                return;
+                2
             }
 
             Opcode::ld_h_a => {
                 self.register.h = self.register.a;
-                return;
+                2
             }
 
             Opcode::ld_l_a => {
                 self.register.l = self.register.a;
-                return;
+                2
             }
 
             Opcode::ld_bc_a => {
                 let value = self.register.a;
                 self.register.set_bc(value as u16);
-                return;
+                2
             }
 
             Opcode::ld_de_a => {
                 let value = self.register.a;
                 self.register.set_de(value as u16);
-                return;
+                2
             }
 
             Opcode::ld_hl_a => {
                 let value = self.register.a;
                 let addr = self.register.hl();
                 self.interconnect.store8(addr, value);
-                return;
+                2
             }
 
             Opcode::ld_nn_a => {
                 let addr = self.interconnect.load16(self.current_pc);
                 let value = self.register.a;
                 self.interconnect.store8(addr, value);
-                return;
+                4
             }
 
             Opcode::add_a_a => {
@@ -647,7 +646,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) + (self.register.a as u16) > 0xF;
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::add_a_b => {
@@ -659,7 +658,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) + (self.register.b as u16) > 0xF;
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::add_a_c => {
@@ -671,7 +670,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) + (self.register.c as u16) > 0xF;
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::add_a_d => {
@@ -683,7 +682,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) + (self.register.d as u16) > 0xF;
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::add_a_e => {
@@ -695,7 +694,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) + (self.register.e as u16) > 0xF;
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::add_a_h => {
@@ -707,7 +706,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) + (self.register.h as u16) > 0xF;
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::add_a_l => {
@@ -719,7 +718,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) + (self.register.l as u16) > 0xF;
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::add_a_hl => {
@@ -732,7 +731,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) + (value as u16) > 0xF;
 
                 self.register.a = res;
-                return;
+                4
             }
 
             Opcode::push_af => {
@@ -742,7 +741,7 @@ impl Cpu {
 
                 let addr = self.register.sp;
                 self.store16(addr, value);
-                return;
+                4
             }
 
             Opcode::push_bc => {
@@ -752,7 +751,7 @@ impl Cpu {
 
                 let addr = self.register.sp;
                 self.store16(addr, value);
-                return;
+                4
             }
 
             Opcode::push_de => {
@@ -762,7 +761,7 @@ impl Cpu {
 
                 let addr = self.register.sp;
                 self.store16(addr, value);
-                return;
+                4
             }
 
             Opcode::push_hl => {
@@ -772,7 +771,7 @@ impl Cpu {
 
                 let addr = self.register.sp;
                 self.store16(addr, value);
-                return;
+                4
             }
 
             Opcode::call_nn => {
@@ -788,17 +787,17 @@ impl Cpu {
 
                 self.register.pc = nn;
 
-                return;
+                2
             }
 
             Opcode::di => {
                 self.set_di = 2;
-                return;
+                2
             }
 
             Opcode::ei => {
                 self.set_ei = 2;
-                return;
+                2
             }
 
             Opcode::xor_a_a => {
@@ -810,7 +809,7 @@ impl Cpu {
                 self.register.flag.c = false;
 
                 self.register.a = res;
-                return;
+                1
             }
 
             Opcode::xor_a_b => {
@@ -822,7 +821,7 @@ impl Cpu {
                 self.register.flag.c = false;
 
                 self.register.a = res;
-                return;
+                1
             }
 
             Opcode::xor_a_c => {
@@ -834,7 +833,7 @@ impl Cpu {
                 self.register.flag.c = false;
 
                 self.register.a = res;
-                return;
+                1
             }
 
             Opcode::xor_a_d => {
@@ -846,7 +845,7 @@ impl Cpu {
                 self.register.flag.c = false;
 
                 self.register.a = res;
-                return;
+                1
             }
 
             Opcode::xor_a_e => {
@@ -858,7 +857,7 @@ impl Cpu {
                 self.register.flag.c = false;
 
                 self.register.a = res;
-                return;
+                1
             }
 
             Opcode::xor_a_h => {
@@ -870,7 +869,7 @@ impl Cpu {
                 self.register.flag.c = false;
 
                 self.register.a = res;
-                return;
+                1
             }
 
             Opcode::xor_a_l => {
@@ -882,7 +881,7 @@ impl Cpu {
                 self.register.flag.c = false;
 
                 self.register.a = res;
-                return;
+                1
             }
 
             Opcode::xor_a_hl => {
@@ -895,7 +894,7 @@ impl Cpu {
                 self.register.flag.c = false;
 
                 self.register.a = res;
-                return;
+                4
             }
 
             Opcode::xor_a_asterisk => {
@@ -911,48 +910,58 @@ impl Cpu {
 
                 self.register.pc = self.register.pc.wrapping_add(1);
 
-                return;
+                4
             }
 
             Opcode::ret_nz => {
                 if !self.register.flag.z {
                     self.register.pc = self.interconnect.load16(self.register.sp);
                     self.register.sp = self.register.sp.wrapping_add(2);
+
+                    return 5
                 }
 
-                return;
+                2
             }
 
             Opcode::ret_z => {
                 if self.register.flag.z {
                     self.register.pc = self.interconnect.load16(self.register.sp);
                     self.register.sp = self.register.sp.wrapping_add(2);
+                
+                    return 5
                 }
 
-                return;
+                2
             }
 
             Opcode::ret_nc => {
                 if !self.register.flag.c {
                     self.register.pc = self.interconnect.load16(self.register.sp);
                     self.register.sp = self.register.sp.wrapping_add(2);
+                
+                    return 5
                 }
 
-                return;
+                2
             }
 
             Opcode::ret_c => {
                 if self.register.flag.c {
                     self.register.pc = self.interconnect.load16(self.register.sp);
                     self.register.sp = self.register.sp.wrapping_add(2);
+                
+                    return 5
                 }
 
-                return;
+                2
             }
 
             Opcode::ldh_n_a => {
                 let addr = 0xFF00 | self.interconnect.load8(self.register.pc) as u16;
                 self.interconnect.store8(addr, self.register.a);
+            
+                3
             }
 
             Opcode::ldh_a_n => {
@@ -960,6 +969,8 @@ impl Cpu {
                 self.register.a = self.interconnect.load8(addr);
 
                 self.register.pc = self.register.pc.wrapping_add(1);
+            
+                3
             }
 
             Opcode::add_a_sharp => {
@@ -972,7 +983,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) + (value as u16) > 0xF;
 
                 self.register.a = res;
-                return;
+                4
             }
 
             Opcode::cp_a_a => {
@@ -984,7 +995,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.a as u16);
 
                 self.register.a = self.register.a;
-                return;
+                1
             }
 
             Opcode::cp_a_b => {
@@ -996,7 +1007,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.b as u16);
 
                 self.register.a = self.register.a;
-                return;
+                1
             }
 
             Opcode::cp_a_c => {
@@ -1008,7 +1019,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.c as u16);
 
                 self.register.a = self.register.a;
-                return;
+                1
             }
 
             Opcode::cp_a_d => {
@@ -1020,7 +1031,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.d as u16);
 
                 self.register.a = self.register.a;
-                return;
+                1
             }
 
             Opcode::cp_a_e => {
@@ -1032,7 +1043,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.e as u16);
 
                 self.register.a = self.register.a;
-                return;
+                1
             }
 
             Opcode::cp_a_h => {
@@ -1044,7 +1055,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.h as u16);
 
                 self.register.a = self.register.a;
-                return;
+                1
             }
 
             Opcode::cp_a_l => {
@@ -1056,7 +1067,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.l as u16);
 
                 self.register.a = self.register.a;
-                return;
+                1
             }
 
             Opcode::cp_a_hl => {
@@ -1069,7 +1080,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (value as u16);
 
                 self.register.a = self.register.a;
-                return;
+                4
             }
 
             Opcode::cp_a_sharp => {
@@ -1082,7 +1093,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (value as u16);
 
                 self.register.a = self.register.a;
-                return;
+                4
             }
 
             Opcode::jr_nz_n => {
@@ -1091,11 +1102,12 @@ impl Cpu {
                     
                     self.register.pc = self.register.pc.wrapping_add(1);
                     self.register.pc = ((self.register.pc as i32).wrapping_add(n as i32)) as u16;
+                
+                    3
                 } else {
                     self.register.pc = self.register.pc.wrapping_add(1);
+                    2
                 }
-
-                return;
             }
 
             Opcode::jr_z_n => {
@@ -1104,11 +1116,13 @@ impl Cpu {
                     
                     self.register.pc = self.register.pc.wrapping_add(1);
                     self.register.pc = ((self.register.pc as i32).wrapping_add(n as i32)) as u16;
+                
+                    3
                 } else {
                     self.register.pc = self.register.pc.wrapping_add(1);
+                
+                    2
                 }
-
-                return;
             }
 
             Opcode::jr_nc_n => {
@@ -1117,11 +1131,12 @@ impl Cpu {
                     
                     self.register.pc = self.register.pc.wrapping_add(1);
                     self.register.pc = ((self.register.pc as i32).wrapping_add(n as i32)) as u16;
+                
+                    3
                 } else {
                     self.register.pc = self.register.pc.wrapping_add(1);
+                    2
                 }
-
-                return;
             }
 
             Opcode::jr_c_n => {
@@ -1130,11 +1145,11 @@ impl Cpu {
                     
                     self.register.pc = self.register.pc.wrapping_add(1);
                     self.register.pc = ((self.register.pc as i32).wrapping_add(n as i32)) as u16;
+                    3
                 } else {
                     self.register.pc = self.register.pc.wrapping_add(1);
+                    2
                 }
-
-                return;
             }
 
             Opcode::ret => {
@@ -1142,7 +1157,7 @@ impl Cpu {
                 self.register.sp = self.register.sp.wrapping_add(2);
 
                 self.register.pc = res;
-                return;
+                4
             }
 
             Opcode::sub_a_a => {
@@ -1154,7 +1169,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.a as u16);
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::sub_a_b => {
@@ -1166,7 +1181,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.b as u16);
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::sub_a_c => {
@@ -1178,7 +1193,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.c as u16);
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::sub_a_d => {
@@ -1190,7 +1205,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.d as u16);
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::sub_a_e => {
@@ -1202,7 +1217,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.e as u16);
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::sub_a_h => {
@@ -1214,7 +1229,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.h as u16);
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::sub_a_l => {
@@ -1226,7 +1241,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (self.register.l as u16);
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::sub_a_hl => {
@@ -1239,7 +1254,7 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (value as u16);
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::sub_a_sharp => {
@@ -1252,17 +1267,15 @@ impl Cpu {
                 self.register.flag.c = (self.register.a as u16) < (value as u16);
 
                 self.register.a = res;
-                return;
+                2
             }
 
             Opcode::jp_nn => {
-                self.clock.m += 4;
-
                 let addr = self.register.pc;
                 let nn = self.load16(addr);
 
                 self.register.pc = nn;
-                return;
+                2
             }
 
             Opcode::rst_00 => {
@@ -1272,7 +1285,7 @@ impl Cpu {
                 self.store16(addr, value);
 
                 self.register.pc = 0x00;
-                return;
+                4
             }
 
             Opcode::rst_08 => {
@@ -1282,7 +1295,7 @@ impl Cpu {
                 self.store16(addr, value);
 
                 self.register.pc = 0x08;
-                return;
+                4
             }
 
             Opcode::rst_10 => {
@@ -1292,7 +1305,7 @@ impl Cpu {
                 self.store16(addr, value);
 
                 self.register.pc = 0x10;
-                return;
+                4
             }
 
             Opcode::rst_18 => {
@@ -1302,7 +1315,7 @@ impl Cpu {
                 self.store16(addr, value);
 
                 self.register.pc = 0x18;
-                return;
+                4
             }
 
             Opcode::rst_20 => {
@@ -1312,7 +1325,7 @@ impl Cpu {
                 self.store16(addr, value);
 
                 self.register.pc = 0x20;
-                return;
+                4
             }
 
             Opcode::rst_28 => {
@@ -1322,7 +1335,7 @@ impl Cpu {
                 self.store16(addr, value);
 
                 self.register.pc = 0x28;
-                return;
+                4
             }
 
             Opcode::rst_30 => {
@@ -1332,7 +1345,7 @@ impl Cpu {
                 self.store16(addr, value);
 
                 self.register.pc = 0x30;
-                return;
+                4
             }
 
             Opcode::rst_38 => {
@@ -1342,19 +1355,17 @@ impl Cpu {
                 self.store16(addr, value);
 
                 self.register.pc = 0x38;
-                return;
+                4
             }
 
             Opcode::jp_hl => {
-                self.clock.m += 1;
-
                 self.register.pc = self.register.hl();
-                return;
+                1
             }
 
             Opcode::halt => {
                 self.halted = true;
-                return;
+                4
             }
         }
     }

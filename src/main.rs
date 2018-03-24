@@ -7,8 +7,9 @@ mod opcode;
 mod wram;
 mod echo;
 mod hram;
-mod io;
 mod eram;
+mod sdt;
+mod timer;
 
 use cpu::Cpu;
 use interconnect::Interconnect;
@@ -25,16 +26,8 @@ fn main() {
 
     cpu.power_up();
 
-    let mut i = 0;
     loop {
-        cpu.update_ime();
-
-        cpu.handle_interrupt();
-        
-        if !cpu.halted {
-            println!("#{}", i);
-            cpu.run_next_instruction();
-            i += 1;
-        }
+        let time = cpu.cycle();
+        cpu.interconnect.cycle(time);
     }
 }
