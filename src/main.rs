@@ -8,6 +8,7 @@ mod wram;
 mod echo;
 mod hram;
 mod io;
+mod eram;
 
 use cpu::Cpu;
 use interconnect::Interconnect;
@@ -26,8 +27,10 @@ fn main() {
 
     let mut i = 0;
     loop {
-        println!("#{}", i);
-        cpu.run_next_instruction();
-        i += 1;
+        if !cpu.halted {
+            println!("#{}", i);
+            cpu.run_next_instruction();
+            i += 1;
+        }
     }
 }

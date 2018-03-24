@@ -21,7 +21,7 @@ struct Flag {
 }
 
 impl Flag {
-    pub fn init() -> Flag {
+    pub fn new() -> Flag {
         Flag {
             z: false,
             n: false,
@@ -63,7 +63,7 @@ impl Register {
             pc: 0x0100,
             sp: 0xfffe,
 
-            flag: Flag::init(),
+            flag: Flag::new(),
         }
     }
 
@@ -116,6 +116,8 @@ pub struct Cpu {
     clock: Clock,
 
     op: Opcode,
+
+    pub halted: bool,
 }
 
 impl Cpu {
@@ -133,6 +135,8 @@ impl Cpu {
             clock: Clock::new(),
 
             op: Opcode::jp_nn,
+
+            halted: false,
         }
     }
 
@@ -286,7 +290,6 @@ impl Cpu {
                 return;
             }
             Opcode::ld_a_nn => {
-                //TODO: Probably incorrect.
                 let value = self.interconnect.load16(self.register.pc);
                 self.register.a = self.interconnect.load8(value);
                 self.register.pc = self.register.pc.wrapping_add(2);
@@ -733,7 +736,7 @@ impl Cpu {
                 // TODO: Probably incorrect implementation.
                 // Require delay for executing.
 
-                self.interconnect.interrupt = 0;
+                self.interconnect.ime = false;
                 return;
             }
 
@@ -1285,6 +1288,11 @@ impl Cpu {
                 self.clock.m += 1;
 
                 self.register.pc = self.register.hl();
+                return;
+            }
+
+            Opcode::halt => {
+                self.halted = true;
                 return;
             }
         }

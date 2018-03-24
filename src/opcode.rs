@@ -158,6 +158,8 @@ pub enum Opcode {
     jr_c_n = 0x38,
 
     ret = 0xC9,
+
+    halt = 0x76,
 }
 
 impl Opcode {

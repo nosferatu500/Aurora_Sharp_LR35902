@@ -3,6 +3,7 @@ use wram::Wram;
 use echo::Echo;
 use hram::Hram;
 use io::IO;
+use eram::Eram;
 
 mod map {
     pub struct Range(u16, u16);
@@ -37,8 +38,9 @@ pub struct Interconnect {
     echo: Echo,
     hram: Hram,
     io: IO,
+    eram: Eram,
 
-    pub interrupt: u8,
+    pub ime: bool,
 }
 
 impl Interconnect {
@@ -49,8 +51,9 @@ impl Interconnect {
             echo: Echo::new(),
             hram: Hram::new(),
             io: IO::new(),
+            eram: Eram::new(),
 
-            interrupt: 0,
+            ime: false,
         }
     }
 
@@ -63,12 +66,20 @@ impl Interconnect {
             return self.hram.load8(offset);
         }
 
+        if let Some(offset) = map::ERAM.contains(addr) {
+            return self.eram.load8(offset);
+        }
+
         if let Some(offset) = map::IO.contains(addr) {
             return self.io.load8(offset);
         }
 
         if 0xFFFF == addr {
-            return self.interrupt;
+            if self.ime {
+                return 1;
+            } else {
+                return 0;
+            }
         }
 
         panic!("Unhandled load 8bit address {:#x}", addr);
@@ -81,6 +92,10 @@ impl Interconnect {
 
         if let Some(offset) = map::HRAM.contains(addr) {
             return self.hram.load16(offset);
+        }
+
+        if let Some(offset) = map::ERAM.contains(addr) {
+            return self.eram.load16(offset);
         }
 
         if let Some(offset) = map::WRAM.contains(addr) {
@@ -111,12 +126,21 @@ impl Interconnect {
             return self.echo.store8(offset, value);
         }
 
+        if let Some(offset) = map::ERAM.contains(addr) {
+            return self.eram.store8(offset, value);
+        }
+
         if let Some(offset) = map::IO.contains(addr) {
             return self.io.store8(offset, value);
         }
 
         if 0xFFFF == addr {
-            self.interrupt = value;
+            if value == 0 {
+                self.ime = false;
+            } else {
+                self.ime = true;
+            }
+            
             return;
         }
 
