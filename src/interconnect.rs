@@ -40,7 +40,8 @@ pub struct Interconnect {
     io: IO,
     eram: Eram,
 
-    pub ime: bool,
+    pub interrupt_enable: u8,
+    pub interrupt_flag: u8,
 }
 
 impl Interconnect {
@@ -53,7 +54,8 @@ impl Interconnect {
             io: IO::new(),
             eram: Eram::new(),
 
-            ime: false,
+            interrupt_enable: 0,
+            interrupt_flag: 0,
         }
     }
 
@@ -74,12 +76,12 @@ impl Interconnect {
             return self.io.load8(offset);
         }
 
+        if 0xFF0F == addr {
+            return self.interrupt_flag;
+        }
+
         if 0xFFFF == addr {
-            if self.ime {
-                return 1;
-            } else {
-                return 0;
-            }
+            return self.interrupt_enable;
         }
 
         panic!("Unhandled load 8bit address {:#x}", addr);
@@ -134,14 +136,12 @@ impl Interconnect {
             return self.io.store8(offset, value);
         }
 
+        if 0xFF0F == addr {
+            return self.interrupt_flag = value;
+        }
+
         if 0xFFFF == addr {
-            if value == 0 {
-                self.ime = false;
-            } else {
-                self.ime = true;
-            }
-            
-            return;
+            return self.interrupt_enable = value;
         }
 
         panic!("Unhandled store 8bit address {:#x}", addr);

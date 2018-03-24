@@ -27,6 +27,10 @@ fn main() {
 
     let mut i = 0;
     loop {
+        cpu.update_ime();
+
+        cpu.handle_interrupt();
+        
         if !cpu.halted {
             println!("#{}", i);
             cpu.run_next_instruction();

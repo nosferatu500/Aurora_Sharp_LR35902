@@ -113,6 +113,9 @@ pub enum Opcode {
     jp_hl = 0xE9,
 
     di = 0xF3,
+    ei = 0xFB,
+
+    callback = 0xCB,
 
     rst_00 = 0xC7,
     rst_08 = 0xCF,

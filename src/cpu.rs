@@ -118,6 +118,11 @@ pub struct Cpu {
     op: Opcode,
 
     pub halted: bool,
+
+    ime: bool,
+
+    set_di: u32,
+    set_ei: u32,
 }
 
 impl Cpu {
@@ -137,8 +142,26 @@ impl Cpu {
             op: Opcode::jp_nn,
 
             halted: false,
+
+            ime: false,
+
+            set_di: 0,
+			set_ei: 0,
         }
     }
+
+    pub fn update_ime(&mut self) {
+		self.set_di = match self.set_di {
+			2 => 1,
+			1 => { self.ime = false; 0 },
+			_ => 0,
+		};
+		self.set_ei = match self.set_ei {
+			2 => 1,
+			1 => { self.ime = true; 0 },
+			_ => 0,
+		};
+	}
 
     fn store16(&mut self, addr: u16, value: u16) {
         self.interconnect.store8(addr, (value & 0xff) as u8);
@@ -150,6 +173,33 @@ impl Cpu {
         let rhs = (self.interconnect.load8(addr + 1) as u16) << 8;
 
         return lhs | rhs;
+    }
+
+    pub fn handle_interrupt(&mut self) {
+        if self.ime == false && self.halted == false { return; }
+		self.halted = false;
+
+        let device = self.interconnect.interrupt_enable & self.interconnect.interrupt_flag;
+        if device == 0 { return; }
+
+		if self.ime == false { return; }
+		self.ime = false;
+
+        let n = device.trailing_zeros();
+        if n >= 5 { panic!("Invalid device"); }
+        
+        // The Solution by Mathijs van de Nes.
+        //////////////////////////////////////
+        self.interconnect.interrupt_flag = self.interconnect.interrupt_flag & !(1 << n);
+        
+        let pc = self.register.pc;
+        self.register.sp = self.register.sp.wrapping_sub(2);
+        
+        let sp = self.register.sp;
+        self.store16(sp, pc);
+        
+        self.register.pc = 0x0040 | ((n as u16) << 3);
+        //////////////////////////////////////
     }
 
     pub fn power_up(&mut self) {
@@ -205,6 +255,10 @@ impl Cpu {
         self.decode(instruction);
     }
 
+    fn run_next_callback(&mut self) {
+        panic!("CALL BACK");
+    }
+
     fn decode(&mut self, instruction: u8) {
         let value = instruction & 0xff;
         let opcode = self.op.find(value);
@@ -213,6 +267,11 @@ impl Cpu {
 
         match opcode {
             Opcode::nop => return,
+
+            Opcode::callback => {
+                self.run_next_callback();
+                return;
+            }
 
             Opcode::ld_bc_nn => {
                 let addr = self.register.pc;
@@ -733,10 +792,12 @@ impl Cpu {
             }
 
             Opcode::di => {
-                // TODO: Probably incorrect implementation.
-                // Require delay for executing.
+                self.set_di = 2;
+                return;
+            }
 
-                self.interconnect.ime = false;
+            Opcode::ei => {
+                self.set_ei = 2;
                 return;
             }
 
